@@ -1,0 +1,1283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>LendLedger — Lending &amp; Interest Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23059669'/%3E%3Cpath d='M9 22V10h3v9.5h7V22z' fill='white'/%3E%3Ccircle cx='22' cy='12' r='3' fill='white'/%3E%3C/svg%3E">
+<style>/*TAILWIND*/</style>
+<style>
+  :root { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body { -webkit-tap-highlight-color: transparent; }
+  .num { font-variant-numeric: tabular-nums; }
+  .overlay { transition: opacity .2s ease; }
+  .panel { transition: transform .25s cubic-bezier(.2,.8,.2,1), opacity .2s ease; }
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 8px; }
+  input[type=date]::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
+  html.dark input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
+</style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-200">
+
+<!-- ============ HEADER ============ -->
+<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+    <div class="flex items-center gap-2.5">
+      <div class="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-white shadow-sm">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10m4 11V10m6 11V10m4 11V10M2 10l10-6 10 6"/></svg>
+      </div>
+      <div class="leading-tight">
+        <h1 class="text-base font-semibold tracking-tight text-slate-900 dark:text-white">LendLedger</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Lending &amp; interest tracker</p>
+      </div>
+    </div>
+
+    <div class="ml-auto flex items-center gap-2">
+      <!-- Lent / Borrowed switch -->
+      <div class="hidden rounded-lg bg-slate-100 p-1 text-sm font-medium dark:bg-slate-800 sm:flex" role="tablist" id="viewSwitchDesktop">
+        <button data-view="lent" class="view-btn rounded-md px-3 py-1.5">Lent</button>
+        <button data-view="borrowed" class="view-btn rounded-md px-3 py-1.5">Borrowed</button>
+      </div>
+
+      <button id="btnTheme" class="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <svg id="iconSun" viewBox="0 0 24 24" class="hidden h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg id="iconMoon" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+
+      <div class="relative">
+        <button id="btnMenu" class="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" aria-haspopup="true">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+          <span class="hidden sm:inline">Data</span>
+        </button>
+        <div id="menu" class="absolute right-0 z-40 mt-2 hidden w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900">
+          <button data-action="export-json" class="menu-item flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            <span><span class="block font-medium">Export backup</span><span class="block text-xs text-slate-500 dark:text-slate-400">Download all data as .json</span></span>
+          </button>
+          <button data-action="import-json" class="menu-item flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span><span class="block font-medium">Import backup</span><span class="block text-xs text-slate-500 dark:text-slate-400">Restore or merge a .json file</span></span>
+          </button>
+          <button data-action="export-csv" class="menu-item flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8"/></svg>
+            <span><span class="block font-medium">Export to CSV</span><span class="block text-xs text-slate-500 dark:text-slate-400">Open in Excel / Sheets</span></span>
+          </button>
+          <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+          <label class="flex items-center justify-between gap-3 px-4 py-2.5">
+            <span class="font-medium">Currency</span>
+            <select id="currencySelect" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800">
+              <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="GBP">£ GBP</option><option value="AED">AED</option>
+            </select>
+          </label>
+          <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+          <button data-action="load-demo" class="menu-item flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>
+            <span class="font-medium">Reload demo data</span>
+          </button>
+          <button data-action="erase" class="menu-item flex w-full items-center gap-3 px-4 py-2.5 text-left text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg>
+            <span class="font-medium">Erase all data</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="btnNewTop" class="hidden h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 sm:flex">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New transaction
+      </button>
+    </div>
+
+    <!-- Mobile view switch -->
+    <div class="flex w-full rounded-lg bg-slate-100 p-1 text-sm font-medium dark:bg-slate-800 sm:hidden" id="viewSwitchMobile">
+      <button data-view="lent" class="view-btn flex-1 rounded-md px-3 py-1.5">Money Lent</button>
+      <button data-view="borrowed" class="view-btn flex-1 rounded-md px-3 py-1.5">Money Borrowed</button>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto max-w-7xl px-4 pb-28 pt-5 sm:px-6 sm:pb-12">
+
+  <!-- As-of bar -->
+  <div class="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+    <div class="flex items-center gap-2">
+      <span class="text-slate-500 dark:text-slate-400">Calculated as of</span>
+      <input type="date" id="asOf" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium dark:border-slate-700 dark:bg-slate-900">
+      <button id="btnToday" class="hidden rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50">Reset to today</button>
+    </div>
+    <p class="text-xs text-slate-400 dark:text-slate-500">Change this date to see what will be owed on a future (or past) return date.</p>
+  </div>
+
+  <!-- KPI cards -->
+  <section id="cards" class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"></section>
+
+  <!-- Toolbar -->
+  <section class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div class="relative flex-1">
+      <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="search" type="search" placeholder="Search by name, phone or note…" class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900">
+    </div>
+    <div class="flex gap-2">
+      <select id="statusFilter" class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-none">
+        <option value="all">All statuses</option>
+        <option value="active">Active</option>
+        <option value="overdue">Overdue</option>
+        <option value="paid">Fully paid</option>
+      </select>
+      <select id="sortBy" class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-none">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="outstanding">Highest outstanding</option>
+        <option value="name">Name A–Z</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- List -->
+  <section class="mt-4">
+    <!-- Desktop table -->
+    <div class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
+      <div class="scroll-thin overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th class="px-4 py-3">Client</th>
+              <th class="px-4 py-3">Interest</th>
+              <th class="px-4 py-3 text-right">Principal</th>
+              <th class="px-4 py-3 text-right">Days</th>
+              <th class="px-4 py-3 text-right">Interest accrued</th>
+              <th class="px-4 py-3 text-right">Paid</th>
+              <th class="px-4 py-3 text-right">Outstanding</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3 text-right"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Mobile cards -->
+    <div id="mobileList" class="space-y-3 md:hidden"></div>
+    <div id="emptyState" class="hidden rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900">
+      <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <h3 class="mt-3 font-semibold text-slate-900 dark:text-white" id="emptyTitle">No transactions yet</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" id="emptyText">Add your first transaction to start tracking.</p>
+    </div>
+  </section>
+
+  <p class="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+    Data is stored only in this browser on this device. Use <span class="font-medium">Data → Export backup</span> regularly and import it on your other devices.
+  </p>
+</main>
+
+<!-- Mobile FAB -->
+<button id="btnNewFab" class="fixed bottom-5 right-5 z-20 flex h-14 items-center gap-2 rounded-full bg-emerald-600 pl-4 pr-5 font-semibold text-white shadow-lg shadow-emerald-600/30 active:scale-95 sm:hidden" style="margin-bottom: env(safe-area-inset-bottom)">
+  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  New
+</button>
+
+<input type="file" id="fileImport" accept=".json,application/json" class="hidden">
+
+<!-- ============ SLIDE-OVER: TRANSACTION FORM ============ -->
+<div id="txDrawer" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+  <div class="overlay absolute inset-0 bg-slate-900/50 opacity-0 backdrop-blur-sm" data-close></div>
+  <div class="panel absolute inset-y-0 right-0 flex w-full max-w-md translate-x-full flex-col bg-white shadow-2xl dark:bg-slate-900">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <h2 id="txDrawerTitle" class="text-lg font-semibold text-slate-900 dark:text-white">New transaction</h2>
+      <button data-close class="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <form id="txForm" class="scroll-thin flex-1 space-y-4 overflow-y-auto px-5 py-5" novalidate>
+      <div>
+        <span class="mb-1.5 block text-sm font-medium">Direction</span>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="direction" value="lent" class="peer sr-only" checked>
+            <span class="block rounded-lg border border-slate-200 px-3 py-2.5 text-center text-sm font-medium peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 dark:border-slate-700 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/50 dark:peer-checked:text-emerald-300">I lent money</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="direction" value="borrowed" class="peer sr-only">
+            <span class="block rounded-lg border border-slate-200 px-3 py-2.5 text-center text-sm font-medium peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:text-amber-700 dark:border-slate-700 dark:peer-checked:border-amber-500 dark:peer-checked:bg-amber-950/40 dark:peer-checked:text-amber-300">I borrowed money</span>
+          </label>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block sm:col-span-2">
+          <span class="mb-1.5 block text-sm font-medium">Client name <span class="text-rose-500">*</span></span>
+          <input name="name" required maxlength="80" class="field" placeholder="e.g. Rahul Sharma">
+        </label>
+        <label class="block sm:col-span-2">
+          <span class="mb-1.5 block text-sm font-medium">Phone <span class="font-normal text-slate-400">(optional)</span></span>
+          <input name="phone" type="tel" maxlength="20" class="field" placeholder="+91 98xxxxxxxx">
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium">Principal amount <span class="text-rose-500">*</span></span>
+          <input name="principal" type="number" inputmode="decimal" min="0" step="0.01" required class="field num" placeholder="50000">
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium">Date given <span class="text-rose-500">*</span></span>
+          <input name="date" type="date" required class="field">
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium">Interest type</span>
+          <select name="type" class="field">
+            <option value="monthly">Monthly %</option>
+            <option value="fixed">Fixed % (one-time)</option>
+            <option value="zero">Zero interest</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium">Interest rate (%)</span>
+          <input name="rate" type="number" inputmode="decimal" min="0" step="0.01" class="field num" placeholder="2">
+        </label>
+        <label class="block sm:col-span-2">
+          <span class="mb-1.5 block text-sm font-medium">Expected return date <span class="font-normal text-slate-400">(optional)</span></span>
+          <input name="dueDate" type="date" class="field">
+        </label>
+        <label class="block sm:col-span-2">
+          <span class="mb-1.5 block text-sm font-medium">Notes</span>
+          <textarea name="notes" rows="3" maxlength="500" class="field resize-none" placeholder="Purpose, collateral, witness…"></textarea>
+        </label>
+      </div>
+      <div id="txPreview" class="rounded-lg bg-slate-50 p-3.5 text-sm dark:bg-slate-800/60"></div>
+      <p id="txError" class="hidden rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"></p>
+    </form>
+    <div class="flex gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
+      <button type="button" data-close class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">Cancel</button>
+      <button type="submit" form="txForm" class="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Save transaction</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SLIDE-OVER: DETAILS ============ -->
+<div id="detailDrawer" class="fixed inset-0 z-40 hidden" aria-modal="true" role="dialog">
+  <div class="overlay absolute inset-0 bg-slate-900/50 opacity-0 backdrop-blur-sm" data-close></div>
+  <div class="panel absolute inset-y-0 right-0 flex w-full max-w-lg translate-x-full flex-col bg-white shadow-2xl dark:bg-slate-900">
+    <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <div class="min-w-0">
+        <h2 id="detailName" class="truncate text-lg font-semibold text-slate-900 dark:text-white"></h2>
+        <p id="detailSub" class="text-sm text-slate-500 dark:text-slate-400"></p>
+      </div>
+      <button data-close class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div id="detailBody" class="scroll-thin flex-1 overflow-y-auto px-5 py-5"></div>
+    <div class="flex gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
+      <button id="detailDelete" class="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 dark:border-slate-700 dark:text-rose-400 dark:hover:bg-rose-950/40" title="Delete transaction" aria-label="Delete transaction">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg>
+      </button>
+      <button id="detailEdit" class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">Edit</button>
+      <button id="detailPay" class="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Log payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: PAYMENT ============ -->
+<div id="payModal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+  <div class="overlay absolute inset-0 bg-slate-900/50 opacity-0 backdrop-blur-sm" data-close></div>
+  <div class="absolute inset-x-0 bottom-0 flex justify-center sm:inset-0 sm:items-center sm:p-4">
+    <div class="panel w-full max-w-md translate-y-full rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900 sm:translate-y-4 sm:rounded-2xl sm:opacity-0">
+      <form id="payForm" novalidate>
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-white" id="payTitle">Log payment</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400" id="paySub"></p>
+          </div>
+          <button type="button" data-close class="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <div class="scroll-thin max-h-[65vh] space-y-4 overflow-y-auto px-5 py-5">
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium">Payment date</span>
+              <input name="date" type="date" required class="field">
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium">Amount</span>
+              <input name="amount" type="number" inputmode="decimal" min="0" step="0.01" required class="field num" placeholder="0.00">
+            </label>
+          </div>
+          <div id="payChips" class="-mt-1 flex flex-wrap gap-2"></div>
+          <div id="payKindWrap">
+            <span class="mb-1.5 block text-sm font-medium">What is this payment for?</span>
+            <div id="payKinds" class="grid grid-cols-2 gap-2">
+              <label class="cursor-pointer"><input type="radio" name="kind" value="auto" class="peer sr-only" checked><span class="block h-full rounded-lg border border-slate-200 px-2.5 py-2 text-xs peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-slate-700 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/50 dark:peer-checked:text-emerald-200"><b class="block text-sm">Auto</b>Interest first, then principal</span></label>
+              <label class="cursor-pointer"><input type="radio" name="kind" value="interest" class="peer sr-only"><span class="block h-full rounded-lg border border-slate-200 px-2.5 py-2 text-xs peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-slate-700 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/50 dark:peer-checked:text-emerald-200"><b class="block text-sm">Interest only</b>Principal unchanged</span></label>
+              <label class="cursor-pointer"><input type="radio" name="kind" value="principal" class="peer sr-only"><span class="block h-full rounded-lg border border-slate-200 px-2.5 py-2 text-xs peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-slate-700 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/50 dark:peer-checked:text-emerald-200"><b class="block text-sm">Principal only</b>Interest stays pending</span></label>
+              <label class="cursor-pointer"><input type="radio" name="kind" value="waiver" class="peer sr-only"><span class="block h-full rounded-lg border border-slate-200 px-2.5 py-2 text-xs peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 dark:border-slate-700 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-950/50 dark:peer-checked:text-emerald-200"><b class="block text-sm">Discount / waive</b>Not money received</span></label>
+            </div>
+            <p id="payKindHelp" class="mt-2 text-xs text-slate-500 dark:text-slate-400"></p>
+          </div>
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-medium">Note <span class="font-normal text-slate-400">(optional)</span></span>
+            <input name="note" maxlength="200" class="field" placeholder="Cash / UPI / Bank transfer…">
+          </label>
+          <div id="payPreview" class="rounded-lg bg-slate-50 p-3.5 text-sm dark:bg-slate-800/60"></div>
+          <p id="payError" class="hidden rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"></p>
+        </div>
+        <div class="flex gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
+          <button type="button" data-close class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">Cancel</button>
+          <button type="submit" id="paySubmit" class="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Save payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CONFIRM ============ -->
+<div id="confirmModal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="alertdialog">
+  <div class="overlay absolute inset-0 bg-slate-900/50 opacity-0 backdrop-blur-sm" data-close></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="panel w-full max-w-sm translate-y-4 rounded-2xl bg-white p-5 opacity-0 shadow-2xl dark:bg-slate-900">
+      <h3 id="confirmTitle" class="text-base font-semibold text-slate-900 dark:text-white"></h3>
+      <p id="confirmText" class="mt-2 text-sm text-slate-600 dark:text-slate-400"></p>
+      <div id="confirmActions" class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center px-4 opacity-0 transition-opacity duration-200 sm:bottom-6">
+  <div id="toastInner" class="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-white dark:text-slate-900"></div>
+</div>
+
+<script>
+/* =====================================================================
+   LendLedger — single-file lending tracker
+   Storage: localStorage (key below). No server, works offline.
+   ===================================================================== */
+(() => {
+'use strict';
+
+const STORE_KEY = 'lendledger.v1';
+const APP_ID = 'lendledger';
+const DATA_VERSION = 1;
+
+/* ---------------- Date helpers (timezone-safe, day precision) ---------------- */
+const pad = n => String(n).padStart(2, '0');
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const isDateStr = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(dayNum(s));
+function dayNum(s) { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86400000; }
+const diffDays = (a, b) => Math.round(dayNum(b) - dayNum(a));
+function addDays(s, n) { const t = new Date((dayNum(s) + n) * 86400000); return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`; }
+function fmtDate(s) {
+  if (!s) return '—';
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+/* ---------------- Misc helpers ---------------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const EPS = 0.005;
+
+const CURRENCY_LOCALE = { INR: 'en-IN', USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB', AED: 'en-AE' };
+let moneyFmt, moneyFmt0;
+function buildFormatters() {
+  const c = state.settings.currency in CURRENCY_LOCALE ? state.settings.currency : 'INR';
+  moneyFmt = new Intl.NumberFormat(CURRENCY_LOCALE[c], { style: 'currency', currency: c, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  moneyFmt0 = new Intl.NumberFormat(CURRENCY_LOCALE[c], { style: 'currency', currency: c, maximumFractionDigits: 0 });
+}
+const money = n => moneyFmt.format(round2(n || 0) || 0);
+const moneyShort = n => moneyFmt0.format(Math.round(n || 0));
+
+const TYPE_LABEL = { monthly: 'Monthly', fixed: 'Fixed', zero: 'Zero interest' };
+function rateLabel(tx) {
+  if (tx.type === 'zero') return 'Zero interest';
+  if (tx.type === 'fixed') return `${+tx.rate}% fixed`;
+  return `${+tx.rate}% / month`;
+}
+
+/* =====================================================================
+   INTEREST ENGINE
+   - Monthly %: interest = principal × (rate/100 ÷ 30) × days, accrued day by
+     day on the principal still outstanding.
+   - Fixed %: one-time interest = principal × rate/100 (also on any top-up).
+   - Zero: interest is always 0.
+   Payment kinds:
+     auto      → clears unpaid interest first, remainder reduces principal
+     interest  → interest payment (same order; any excess reduces principal)
+     principal → reduces principal first; unpaid interest stays pending
+     waiver    → discount / write-off: reduces balance but is NOT money received
+   Top-ups (more money given later) add to principal from their own date.
+   Accrual stops on the date the balance reaches zero.
+   ===================================================================== */
+const PAY_KIND_LABEL = { auto: 'Auto', interest: 'Interest only', principal: 'Principal only', waiver: 'Discount / waived' };
+
+function calc(tx, asOf) {
+  const rate = Math.max(0, +tx.rate || 0);
+  const end = asOf < tx.date ? tx.date : asOf;
+  let principal = +tx.principal || 0, principalGiven = principal;
+  let interestDue = 0, totalInterest = 0, paid = 0, interestPaid = 0, principalPaid = 0, excess = 0, waived = 0;
+  let cursor = tx.date, closedOn = null, interestClearedOn = tx.date;
+  const ledger = [{ kind: 'start', date: tx.date, amount: principal }];
+
+  const addFixed = (amt, date) => {
+    if (tx.type !== 'fixed' || rate <= 0) return;
+    const i = amt * rate / 100;
+    interestDue += i; totalInterest += i;
+    ledger.push({ kind: 'fixed', date, amount: i, rate });
+  };
+  addFixed(principal, tx.date);
+
+  const accrue = to => {
+    const days = diffDays(cursor, to);
+    if (days <= 0) return;
+    if (tx.type === 'monthly' && rate > 0 && principal > EPS && !closedOn) {
+      const i = principal * (rate / 100 / 30) * days;
+      interestDue += i; totalInterest += i;
+      ledger.push({ kind: 'accrual', from: cursor, to, days, base: principal, amount: i });
+    }
+    cursor = to;
+  };
+
+  const events = [
+    ...(tx.topups || []).filter(t => t.date <= end).map(t => ({ ...t, ev: 'topup', order: 0 })),
+    ...(tx.payments || []).filter(p => p.date <= end).map(p => ({ ...p, ev: 'payment', order: 1 })),
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order || (a.createdAt || 0) - (b.createdAt || 0));
+
+  for (const e of events) {
+    accrue(e.date);
+    const amt = Math.max(0, +e.amount || 0);
+
+    if (e.ev === 'topup') {
+      closedOn = null;                       // a new disbursement re-opens a settled loan
+      if (interestDue < EPS) interestClearedOn = e.date;
+      principal += amt; principalGiven += amt;
+      ledger.push({ kind: 'topup', id: e.id, date: e.date, amount: amt, note: e.note || '', balance: principal + interestDue });
+      addFixed(amt, e.date);
+      continue;
+    }
+
+    const kind = PAY_KIND_LABEL[e.kind] ? e.kind : 'auto';
+    let toI, toP;
+    if (kind === 'principal') { toP = Math.min(amt, principal); toI = Math.min(amt - toP, interestDue); }
+    else { toI = Math.min(amt, interestDue); toP = Math.min(amt - toI, principal); }
+    interestDue -= toI; principal -= toP;
+    const extra = amt - toI - toP;
+    if (kind === 'waiver') waived += toI + toP;
+    else { paid += amt; interestPaid += toI; principalPaid += toP; excess += extra; }
+    if (interestDue < EPS) { interestDue = 0; interestClearedOn = e.date; }
+    if (principal < EPS) principal = 0;
+    ledger.push({ kind: kind === 'waiver' ? 'waiver' : 'payment', pkind: kind, id: e.id, date: e.date, amount: amt, toI, toP,
+      extra: kind === 'waiver' ? 0 : extra, note: e.note || '', balance: principal + interestDue });
+    if (!closedOn && principal + interestDue < EPS) closedOn = e.date;
+  }
+  if (!closedOn) accrue(end);
+
+  const outstanding = principal + interestDue;
+  const daysElapsed = diffDays(tx.date, closedOn || end);
+  const isPaid = !!closedOn;
+  const overdue = !isPaid && tx.dueDate && end > tx.dueDate;
+  const perDay = (!isPaid && tx.type === 'monthly') ? principal * (rate / 100 / 30) : 0;
+  const monthlyInterest = perDay * 30;
+
+  return {
+    principalOriginal: principalGiven,
+    principalLeft: principal, interestDue, totalInterest, paid, interestPaid, principalPaid, excess, waived,
+    outstanding, daysElapsed, closedOn, perDay, monthlyInterest, ledger,
+    interestClearedOn: interestDue > EPS ? interestClearedOn : null,
+    monthsPending: interestDue > EPS && monthlyInterest > EPS ? interestDue / monthlyInterest : 0,
+    status: isPaid ? 'paid' : (overdue ? 'overdue' : 'active'),
+    overdueDays: overdue ? diffDays(tx.dueDate, end) : 0,
+  };
+}
+
+/* ---------------- State & persistence ---------------- */
+let state = { transactions: [], settings: { currency: 'INR', theme: null, view: 'lent' } };
+const ui = { asOf: todayStr(), search: '', status: 'all', sort: 'newest', editingId: null, payingId: null, detailId: null };
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ app: APP_ID, version: DATA_VERSION, ...state })); }
+  catch (e) { toast('Could not save — browser storage is full or blocked'); }
+}
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORE_KEY); } catch (e) { /* storage blocked */ }
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      state.transactions = (parsed.transactions || []).map(normalizeTx).filter(Boolean);
+      state.settings = { ...state.settings, ...(parsed.settings || {}) };
+      return;
+    } catch (e) { console.warn('Corrupt data, loading demo', e); }
+  }
+  state.transactions = demoData();
+  save();
+}
+
+function normalizePayment(p) {
+  if (!p || !isDateStr(p.date)) return null;
+  const amount = round2(+p.amount);
+  if (!(amount > 0)) return null;
+  const out = { id: String(p.id || uid()), date: p.date, amount, note: String(p.note || '').slice(0, 200), createdAt: +p.createdAt || Date.now() };
+  if (p.kind && PAY_KIND_LABEL[p.kind] && p.kind !== 'auto') out.kind = p.kind;
+  return out;
+}
+function normalizeTx(t) {
+  if (!t || typeof t !== 'object') return null;
+  const principal = round2(+t.principal);
+  if (!String(t.name || '').trim() || !(principal > 0) || !isDateStr(t.date)) return null;
+  const type = ['monthly', 'fixed', 'zero'].includes(t.type) ? t.type : 'monthly';
+  return {
+    id: String(t.id || uid()),
+    direction: t.direction === 'borrowed' ? 'borrowed' : 'lent',
+    name: String(t.name).trim().slice(0, 80),
+    phone: String(t.phone || '').slice(0, 20),
+    principal,
+    date: t.date,
+    type,
+    rate: type === 'zero' ? 0 : Math.max(0, +t.rate || 0),
+    dueDate: isDateStr(t.dueDate) ? t.dueDate : '',
+    notes: String(t.notes || '').slice(0, 500),
+    payments: (Array.isArray(t.payments) ? t.payments : []).map(normalizePayment).filter(Boolean),
+    topups: (Array.isArray(t.topups) ? t.topups : []).map(normalizePayment).filter(Boolean).map(({ kind, ...r }) => r),
+    createdAt: +t.createdAt || Date.now(),
+    updatedAt: +t.updatedAt || Date.now(),
+  };
+}
+
+// Sample data: loaded on first open and by Data → “Reload demo data”. Dates are relative to today.
+function demoData() {
+  const T = todayStr(), d = n => addDays(T, -n), now = Date.now();
+  const P = (daysAgo, amount, note) => ({ id: uid(), date: d(daysAgo), amount, note, createdAt: now });
+  const mk = o => normalizeTx({ id: uid(), createdAt: now, updatedAt: now, phone: '', dueDate: '', notes: '', payments: [], topups: [], ...o });
+  return [
+    mk({ direction: 'lent', name: 'Rahul Sharma', phone: '+91 90000 00001', principal: 50000, date: d(145), type: 'monthly', rate: 2, notes: 'Shop renovation. Monthly interest settled in cash.', payments: [P(85, 10000, 'Cash'), P(25, 8000, 'UPI')] }),
+    mk({ direction: 'lent', name: 'Karan Malhotra', principal: 30000, date: d(100), type: 'monthly', rate: 3, notes: 'Pays interest monthly, principal at the end.',
+      topups: [{ id: uid(), date: d(70), amount: 20000, note: 'Second instalment', createdAt: now }],
+      payments: [{ ...P(70, 900, 'Interest month 1'), kind: 'interest' }, { ...P(40, 1500, 'Interest month 2'), kind: 'interest' }, { ...P(15, 10000, 'Part principal'), kind: 'principal' }] }),
+    mk({ direction: 'lent', name: 'Priya Mehta', principal: 25000, date: d(90), type: 'fixed', rate: 10, dueDate: addDays(T, 30), notes: 'Flat 10% for the full term.', payments: [P(40, 5000, 'Bank transfer')] }),
+    mk({ direction: 'lent', name: 'Amit Verma', principal: 15000, date: d(60), type: 'zero', rate: 0, notes: 'Friend, no interest.', payments: [P(45, 5000, 'UPI'), P(10, 10000, 'UPI')] }),
+    mk({ direction: 'lent', name: 'Sneha Kapoor', phone: '+91 90000 00002', principal: 100000, date: d(210), type: 'monthly', rate: 1.5, dueDate: d(30), notes: 'Gold kept as collateral.', payments: [P(150, 9000, 'Interest for 2 months'), P(30, 25000, 'Part principal')] }),
+    mk({ direction: 'lent', name: 'Neha Joshi', principal: 8000, date: d(18), type: 'monthly', rate: 3, dueDate: addDays(T, 42), notes: 'Short-term, kirana stock.' }),
+    mk({ direction: 'borrowed', name: 'Vikram Singh', principal: 40000, date: d(75), type: 'monthly', rate: 1, notes: 'Borrowed for bike down-payment.', payments: [P(20, 10000, 'NEFT')] }),
+    mk({ direction: 'borrowed', name: 'Arjun Nair', principal: 20000, date: d(30), type: 'zero', rate: 0, dueDate: addDays(T, 60), notes: 'Family loan, no interest.' }),
+  ].filter(Boolean);
+}
+
+/* ---------------- Theme ---------------- */
+function applyTheme() {
+  const dark = state.settings.theme ? state.settings.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.classList.toggle('dark', dark);
+  $('#iconSun').classList.toggle('hidden', !dark);
+  $('#iconMoon').classList.toggle('hidden', dark);
+  $('meta[name=theme-color]').setAttribute('content', dark ? '#0f172a' : '#ffffff');
+}
+
+/* ---------------- Rendering ---------------- */
+const STATUS_BADGE = {
+  active: '<span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-400/20"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>Active</span>',
+  overdue: '<span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-400/20"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>Overdue</span>',
+  paid: '<span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-400/20"><svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Fully paid</span>',
+};
+const TYPE_BADGE = {
+  monthly: 'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300',
+  fixed: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  zero: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+};
+
+function viewRows() {
+  const v = state.settings.view;
+  return state.transactions.filter(t => t.direction === v).map(t => ({ tx: t, c: calc(t, ui.asOf) }));
+}
+
+function renderViewSwitch() {
+  $$('.view-btn').forEach(b => {
+    const on = b.dataset.view === state.settings.view;
+    b.className = 'view-btn rounded-md px-3 py-1.5 transition ' + (b.closest('#viewSwitchMobile') ? 'flex-1 ' : '') +
+      (on ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200');
+  });
+}
+
+function renderCards(rows) {
+  const lent = state.settings.view === 'lent';
+  let principal = 0, interest = 0, received = 0, outstanding = 0, activeN = 0, overdueN = 0, payN = 0, overdueAmt = 0;
+  for (const { tx, c } of rows) {
+    principal += c.principalOriginal; interest += c.totalInterest; received += c.paid; outstanding += c.outstanding;
+    payN += c.ledger.filter(l => l.kind === 'payment').length;
+    if (c.status !== 'paid') activeN++;
+    if (c.status === 'overdue') { overdueN++; overdueAmt += c.outstanding; }
+  }
+  const pct = principal ? (interest / principal * 100) : 0;
+  const recPct = (principal + interest) ? Math.min(100, received / (principal + interest) * 100) : 0;
+  const card = (label, value, sub, icon, accent, extra = '') => `
+    <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">${label}</p>
+        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg ${accent}">${icon}</span>
+      </div>
+      <p class="num mt-2 truncate text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl" title="${esc(money(value))}">${money(value)}</p>
+      <p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">${sub}</p>
+      ${extra}
+    </div>`;
+  const ic = p => `<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  $('#cards').innerHTML =
+    card(lent ? 'Total Principal Lent' : 'Total Principal Borrowed', principal, `${rows.length} transaction${rows.length === 1 ? '' : 's'} · ${activeN} active`,
+      ic('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'), 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300') +
+    card('Total Interest Accrued', interest, `${pct.toFixed(1)}% of principal`,
+      ic('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>'), 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300') +
+    card(lent ? 'Total Amount Received' : 'Total Amount Repaid', received, `${payN} payment${payN === 1 ? '' : 's'} logged`,
+      ic('<path d="M5 12l5 5L20 7"/>'), 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300',
+      `<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div class="h-full rounded-full bg-emerald-500" style="width:${recPct.toFixed(1)}%"></div></div>`) +
+    card(lent ? 'Total Outstanding Balance' : 'Total You Owe', outstanding,
+      overdueN ? `<span class="font-semibold text-rose-600 dark:text-rose-400">${overdueN} overdue · ${moneyShort(overdueAmt)}</span>` : 'Nothing overdue',
+      ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), lent ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300' : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300');
+}
+
+function filteredSorted(rows) {
+  const q = ui.search.trim().toLowerCase();
+  let out = rows.filter(({ tx, c }) => {
+    if (ui.status === 'active' && c.status === 'paid') return false;
+    if (ui.status === 'overdue' && c.status !== 'overdue') return false;
+    if (ui.status === 'paid' && c.status !== 'paid') return false;
+    if (q && !(`${tx.name} ${tx.phone} ${tx.notes}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const by = {
+    newest: (a, b) => b.tx.date.localeCompare(a.tx.date) || b.tx.createdAt - a.tx.createdAt,
+    oldest: (a, b) => a.tx.date.localeCompare(b.tx.date) || a.tx.createdAt - b.tx.createdAt,
+    outstanding: (a, b) => b.c.outstanding - a.c.outstanding,
+    name: (a, b) => a.tx.name.localeCompare(b.tx.name),
+  }[ui.sort];
+  return out.sort(by);
+}
+
+const ACT_BTN = 'grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white';
+const ICON = {
+  pay: '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  del: '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+};
+
+function pendingLine(c, align) {
+  if (c.status === 'paid') return '';
+  if (c.interestDue > EPS && c.monthsPending >= 0.5)
+    return `<div class="mt-0.5 flex ${align} whitespace-nowrap text-[11px] font-medium text-violet-600 dark:text-violet-400">${moneyShort(c.interestDue)} int. · ${c.monthsPending.toFixed(1)} mo due</div>`;
+  if (c.interestDue > EPS) return `<div class="mt-0.5 flex ${align} text-[11px] font-normal text-slate-500 dark:text-slate-400">incl. ${moneyShort(c.interestDue)} interest</div>`;
+  return '';
+}
+function renderList(rows) {
+  const list = filteredSorted(rows);
+  const empty = list.length === 0;
+  $('#emptyState').classList.toggle('hidden', !empty);
+  if (empty) {
+    const none = rows.length === 0;
+    $('#emptyTitle').textContent = none ? `No ${state.settings.view === 'lent' ? 'lending' : 'borrowing'} records yet` : 'No matches';
+    $('#emptyText').textContent = none ? 'Tap “New transaction” to add your first one.' : 'Try a different search or status filter.';
+  }
+
+  $('#tableBody').innerHTML = list.map(({ tx, c }) => `
+    <tr class="group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" data-open="${tx.id}">
+      <td class="px-4 py-3">
+        <div class="font-semibold text-slate-900 dark:text-white">${esc(tx.name)}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">Given ${fmtDate(tx.date)}${tx.dueDate ? ` · Due ${fmtDate(tx.dueDate)}` : ''}</div>
+      </td>
+      <td class="px-4 py-3"><span class="whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[tx.type]}">${rateLabel(tx)}</span></td>
+      <td class="num px-4 py-3 text-right">${money(c.principalOriginal)}</td>
+      <td class="num px-4 py-3 text-right text-slate-600 dark:text-slate-300">${c.daysElapsed}</td>
+      <td class="num px-4 py-3 text-right text-violet-700 dark:text-violet-300">${money(c.totalInterest)}</td>
+      <td class="num px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">${money(c.paid)}</td>
+      <td class="num px-4 py-3 text-right font-semibold ${c.status === 'paid' ? 'text-slate-400' : 'text-slate-900 dark:text-white'}">${money(c.outstanding)}${pendingLine(c, 'justify-end')}</td>
+      <td class="px-4 py-3">${STATUS_BADGE[c.status]}${c.status === 'overdue' ? `<div class="mt-0.5 text-[11px] text-rose-600 dark:text-rose-400">${c.overdueDays}d late</div>` : ''}</td>
+      <td class="px-4 py-3">
+        <div class="flex justify-end gap-0.5 opacity-70 group-hover:opacity-100">
+          ${c.status !== 'paid' ? `<button class="${ACT_BTN}" data-pay="${tx.id}" title="Log payment" aria-label="Log payment">${ICON.pay}</button>` : ''}
+          <button class="${ACT_BTN}" data-edit="${tx.id}" title="Edit" aria-label="Edit">${ICON.edit}</button>
+          <button class="${ACT_BTN} hover:!text-rose-600" data-del="${tx.id}" title="Delete" aria-label="Delete">${ICON.del}</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  $('#mobileList').innerHTML = list.map(({ tx, c }) => {
+    const total = c.principalOriginal + c.totalInterest;
+    const pct = total ? Math.min(100, (c.paid + c.waived) / total * 100) : 0;
+    return `
+    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:active:bg-slate-800/60" data-open="${tx.id}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="truncate font-semibold text-slate-900 dark:text-white">${esc(tx.name)}</h3>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">${fmtDate(tx.date)} · ${c.daysElapsed} days · <span class="whitespace-nowrap rounded px-1.5 py-px font-medium ${TYPE_BADGE[tx.type]}">${rateLabel(tx)}</span></p>
+        </div>
+        ${STATUS_BADGE[c.status]}
+      </div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <div><p class="text-slate-500 dark:text-slate-400">Principal</p><p class="num mt-0.5 font-semibold">${moneyShort(c.principalOriginal)}</p></div>
+        <div><p class="text-slate-500 dark:text-slate-400">Interest</p><p class="num mt-0.5 font-semibold text-violet-700 dark:text-violet-300">${moneyShort(c.totalInterest)}</p></div>
+        <div><p class="text-slate-500 dark:text-slate-400">Paid</p><p class="num mt-0.5 font-semibold text-emerald-700 dark:text-emerald-400">${moneyShort(c.paid)}</p></div>
+      </div>
+      <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div class="h-full rounded-full bg-emerald-500" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="mt-3 flex items-center justify-between gap-2">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Outstanding</p>
+          <p class="num text-lg font-bold ${c.status === 'paid' ? 'text-slate-400' : 'text-slate-900 dark:text-white'}">${money(c.outstanding)}</p>
+          ${pendingLine(c, '')}
+        </div>
+        ${c.status !== 'paid'
+          ? `<button data-pay="${tx.id}" class="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white active:bg-emerald-700">${ICON.pay} Payment</button>`
+          : `<span class="text-slate-400">${ICON.chev}</span>`}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function renderAll() {
+  buildFormatters();
+  renderViewSwitch();
+  $('#asOf').value = ui.asOf;
+  $('#btnToday').classList.toggle('hidden', ui.asOf === todayStr());
+  const rows = viewRows();
+  renderCards(rows);
+  renderList(rows);
+  if (ui.detailId) renderDetail();
+}
+
+/* ---------------- Detail panel ---------------- */
+function renderDetail() {
+  const tx = getTx(ui.detailId);
+  if (!tx) { closeLayer('#detailDrawer'); ui.detailId = null; return; }
+  const c = calc(tx, ui.asOf);
+  const lent = tx.direction === 'lent';
+  $('#detailName').textContent = tx.name;
+  $('#detailSub').textContent = `${lent ? 'Lent to' : 'Borrowed from'} · ${rateLabel(tx)}${tx.phone ? ' · ' + tx.phone : ''}`;
+  $('#detailPay').classList.toggle('hidden', c.status === 'paid');
+
+  const total = c.principalOriginal + c.totalInterest;
+  const pct = total ? Math.min(100, (c.paid + c.waived) / total * 100) : 0;
+  const stat = (label, value, cls = '', sub = '') => `<div class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60"><p class="text-xs text-slate-500 dark:text-slate-400">${label}</p><p class="num mt-0.5 font-semibold ${cls}">${value}</p>${sub ? `<p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">${sub}</p>` : ''}</div>`;
+  const delBtn = (attr, id, title) => `<button class="ml-2 grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40" ${attr}="${id}" title="${title}" aria-label="${title}">${ICON.del}</button>`;
+  const KIND_TAG = {
+    auto: '', interest: '<span class="ml-1 rounded bg-violet-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-950 dark:text-violet-300">Interest</span>',
+    principal: '<span class="ml-1 rounded bg-sky-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-950 dark:text-sky-300">Principal</span>',
+  };
+
+  const ledgerHtml = c.ledger.map(l => {
+    if (l.kind === 'start') return row('bg-slate-400', `${lent ? 'Money given' : 'Money received'}`, fmtDate(l.date), money(l.amount), '');
+    if (l.kind === 'topup') return row('bg-slate-700 dark:bg-slate-300', `More ${lent ? 'given' : 'borrowed'}${l.note ? ' · ' + esc(l.note) : ''}`,
+      `${fmtDate(l.date)} · Principal now ${money(l.balance)} incl. interest`, '+' + money(l.amount), 'text-slate-900 dark:text-white', delBtn('data-deltop', l.id, 'Delete top-up'));
+    if (l.kind === 'fixed') return row('bg-amber-500', `Fixed interest @ ${l.rate}%`, `One-time · ${fmtDate(l.date)}`, '+' + money(l.amount), 'text-amber-700 dark:text-amber-300');
+    if (l.kind === 'accrual') return row('bg-violet-500', `Interest · ${l.days} day${l.days === 1 ? '' : 's'}`,
+      `${fmtDate(l.from)} → ${fmtDate(l.to)} on ${money(l.base)}`, '+' + money(l.amount), 'text-violet-700 dark:text-violet-300');
+    const split = [l.toI > EPS ? `${money(l.toI)} interest` : '', l.toP > EPS ? `${money(l.toP)} principal` : '', l.extra > EPS ? `${money(l.extra)} excess` : ''].filter(Boolean).join(' + ');
+    if (l.kind === 'waiver') return row('bg-amber-500', `Discount / waived${l.note ? ' · ' + esc(l.note) : ''}`,
+      `${fmtDate(l.date)} · ${split || 'nothing due'} · Balance ${money(l.balance)}`, '−' + money(l.amount), 'text-amber-700 dark:text-amber-300', delBtn('data-delpay', l.id, 'Delete discount'));
+    return row('bg-emerald-500', `Payment ${lent ? 'received' : 'made'}${KIND_TAG[l.pkind] || ''}${l.note ? ' · ' + esc(l.note) : ''}`,
+      `${fmtDate(l.date)} · ${split} · Balance ${money(l.balance)}`, '−' + money(l.amount), 'text-emerald-700 dark:text-emerald-400', delBtn('data-delpay', l.id, 'Delete payment'));
+  }).join('');
+  function row(dot, title, sub, amt, amtCls, trailing = '') {
+    return `<li class="relative flex items-start gap-3 pb-4 last:pb-0">
+      <span class="relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-white dark:ring-slate-900 ${dot}"></span>
+      <div class="min-w-0 flex-1"><p class="text-sm font-medium text-slate-800 dark:text-slate-100">${title}</p><p class="text-xs text-slate-500 dark:text-slate-400">${sub}</p></div>
+      <p class="num whitespace-nowrap text-sm font-semibold ${amtCls}">${amt}</p>${trailing}</li>`;
+  }
+  const hiddenFuture = [...(tx.payments || []), ...(tx.topups || [])].filter(p => p.date > ui.asOf).length;
+  const nPays = (tx.payments || []).length;
+
+  // Interest-pending callout (for interest-only borrowers / missed interest)
+  const pendingBox = (c.status !== 'paid' && c.interestDue > EPS) ? `
+    <div class="mt-4 flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/40">
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-medium text-violet-700 dark:text-violet-300">Interest pending${c.interestClearedOn ? ` since ${fmtDate(c.interestClearedOn)}` : ''}</p>
+        <p class="num text-xl font-bold text-violet-900 dark:text-violet-100">${money(c.interestDue)}</p>
+        ${c.monthsPending ? `<p class="text-xs text-violet-700/80 dark:text-violet-300/80">≈ ${c.monthsPending.toFixed(1)} month${c.monthsPending >= 0.95 && c.monthsPending < 1.05 ? '' : 's'} of interest · ${money(c.monthlyInterest)} / month now</p>` : ''}
+      </div>
+      <button data-collect="${tx.id}" class="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700">${lent ? 'Collect' : 'Pay'} interest</button>
+    </div>` : (c.status !== 'paid' && tx.type === 'monthly' && c.principalLeft > EPS) ? `
+    <div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+      ✓ Interest fully paid up to date. Principal of <b class="num">${money(c.principalLeft)}</b> still ${lent ? 'to be returned' : 'to repay'}.
+    </div>` : '';
+
+  $('#detailBody').innerHTML = `
+    <div class="rounded-xl ${c.status === 'paid' ? 'bg-emerald-600' : c.status === 'overdue' ? 'bg-rose-600' : 'bg-slate-900 dark:bg-slate-800'} p-5 text-white">
+      <div class="flex items-center justify-between text-sm opacity-90">
+        <span>${c.status === 'paid' ? `Settled on ${fmtDate(c.closedOn)}` : `Outstanding as of ${fmtDate(ui.asOf < tx.date ? tx.date : ui.asOf)}`}</span>
+        <span>${c.daysElapsed} days</span>
+      </div>
+      <p class="num mt-1 text-3xl font-bold tracking-tight">${money(c.outstanding)}</p>
+      ${c.status !== 'paid' ? `<p class="num mt-1 text-xs opacity-90">Principal ${money(c.principalLeft)} + interest ${money(c.interestDue)}</p>` : ''}
+      <div class="mt-4 h-2 overflow-hidden rounded-full bg-white/20"><div class="h-full rounded-full bg-white" style="width:${pct.toFixed(1)}%"></div></div>
+      <p class="mt-2 text-xs opacity-90">${pct.toFixed(0)}% cleared · ${money(c.paid)} paid${c.waived > EPS ? ` + ${money(c.waived)} waived` : ''} of ${money(total)}</p>
+    </div>
+
+    ${pendingBox}
+
+    <div class="mt-4 grid grid-cols-2 gap-2.5">
+      ${stat('Principal given', money(c.principalOriginal), '', (tx.topups || []).length ? `${money(tx.principal)} + ${(tx.topups || []).length} top-up${(tx.topups || []).length > 1 ? 's' : ''}` : '')}
+      ${stat('Principal remaining', money(c.principalLeft), '', c.principalPaid > EPS ? `${money(c.principalPaid)} returned` : 'None returned yet')}
+      ${stat('Total interest accrued', money(c.totalInterest), 'text-violet-700 dark:text-violet-300')}
+      ${stat('Interest paid', money(c.interestPaid), 'text-emerald-700 dark:text-emerald-400', c.interestDue > EPS ? `${money(c.interestDue)} still pending` : '')}
+      ${stat('Total paid', money(c.paid), 'text-emerald-700 dark:text-emerald-400', c.waived > EPS ? `${money(c.waived)} waived as discount` : '')}
+      ${tx.type === 'monthly' ? stat('Interest per day now', money(c.perDay), '', `${money(c.monthlyInterest)} per month`) : stat('Expected return', tx.dueDate ? fmtDate(tx.dueDate) : '—')}
+    </div>
+    ${c.excess > EPS ? `<p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Overpaid by <b class="num">${money(c.excess)}</b> — this amount should be returned.</p>` : ''}
+    ${c.status === 'overdue' ? `<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Overdue by <b>${c.overdueDays} days</b> (expected ${fmtDate(tx.dueDate)}).</p>` : ''}
+
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button data-quick="interest" class="rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 ${c.status === 'paid' ? 'hidden' : ''}">
+        <span class="block font-semibold">Interest only</span><span class="block text-xs text-slate-500 dark:text-slate-400">Principal stays the same</span></button>
+      <button data-quick="principal" class="rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 ${c.status === 'paid' ? 'hidden' : ''}">
+        <span class="block font-semibold">Part principal</span><span class="block text-xs text-slate-500 dark:text-slate-400">Reduces future interest</span></button>
+      <button data-quick="topup" class="rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+        <span class="block font-semibold">+ ${lent ? 'Give more' : 'Borrow more'}</span><span class="block text-xs text-slate-500 dark:text-slate-400">Add to this same loan</span></button>
+      <button data-quick="waiver" class="rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 ${c.status === 'paid' ? 'hidden' : ''}">
+        <span class="block font-semibold">Discount / waive</span><span class="block text-xs text-slate-500 dark:text-slate-400">Settle for less</span></button>
+    </div>
+
+    ${c.status !== 'paid' ? `
+    <div class="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+      <p class="text-sm font-semibold">Settlement calculator</p>
+      <p class="text-xs text-slate-500 dark:text-slate-400">How much will be owed on a chosen return date?</p>
+      <div class="mt-3 flex items-center gap-3">
+        <input type="date" id="settleDate" min="${tx.date}" value="${tx.dueDate && tx.dueDate > ui.asOf ? tx.dueDate : addDays(ui.asOf, 30)}" class="field max-w-[11rem]">
+        <div class="min-w-0"><p class="num truncate text-lg font-bold" id="settleAmt"></p><p class="text-xs text-slate-500 dark:text-slate-400" id="settleSub"></p></div>
+      </div>
+    </div>` : ''}
+
+    <div class="mt-6">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-sm font-semibold">Ledger</h3>
+        <span class="text-xs text-slate-500 dark:text-slate-400">${nPays} entr${nPays === 1 ? 'y' : 'ies'}</span>
+      </div>
+      <ol class="relative before:absolute before:bottom-2 before:left-[4.5px] before:top-2 before:w-px before:bg-slate-200 dark:before:bg-slate-700">${ledgerHtml}</ol>
+      ${hiddenFuture ? `<p class="mt-3 text-xs text-slate-500 dark:text-slate-400">${hiddenFuture} entr${hiddenFuture === 1 ? 'y' : 'ies'} dated after ${fmtDate(ui.asOf)} hidden because of the “calculated as of” date.</p>` : ''}
+    </div>
+
+    ${tx.notes ? `<div class="mt-6"><h3 class="mb-1.5 text-sm font-semibold">Notes</h3><p class="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">${esc(tx.notes)}</p></div>` : ''}
+
+    <p class="mt-6 text-xs leading-relaxed text-slate-400 dark:text-slate-500">${
+      tx.type === 'monthly' ? `Interest = principal × (${+tx.rate}% ÷ 30) × days, charged only on the principal still owed. “Auto” and “Interest only” payments clear pending interest first; “Principal only” reduces principal and leaves interest pending.`
+      : tx.type === 'fixed' ? `A one-time ${+tx.rate}% interest is added on the principal (and on any top-up) regardless of duration.`
+      : 'No interest is charged. Payments reduce the principal directly.'}</p>`;
+
+  const sd = $('#settleDate');
+  if (sd) {
+    const upd = () => {
+      if (!isDateStr(sd.value)) return;
+      const r = calc(tx, sd.value);
+      $('#settleAmt').textContent = money(r.outstanding);
+      $('#settleSub').textContent = `${r.daysElapsed} days · interest pending ${money(r.interestDue)}`;
+    };
+    sd.addEventListener('input', upd); upd();
+  }
+}
+
+/* ---------------- Layers (modals & slide-overs) ---------------- */
+function openLayer(sel) {
+  const el = $(sel);
+  el.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.querySelector('.overlay')?.classList.replace('opacity-0', 'opacity-100');
+    const p = el.querySelector('.panel');
+    p.classList.remove('translate-x-full', 'translate-y-full', 'translate-y-4', 'sm:translate-y-4', 'opacity-0', 'sm:opacity-0');
+  }));
+}
+function closeLayer(sel) {
+  const el = $(sel);
+  if (el.classList.contains('hidden')) return;
+  el.querySelector('.overlay')?.classList.replace('opacity-100', 'opacity-0');
+  const p = el.querySelector('.panel');
+  if (sel === '#txDrawer' || sel === '#detailDrawer') p.classList.add('translate-x-full');
+  else if (sel === '#payModal') p.classList.add('translate-y-full', 'sm:translate-y-4', 'sm:opacity-0');
+  else p.classList.add('translate-y-4', 'opacity-0');
+  setTimeout(() => {
+    el.classList.add('hidden');
+    if (!$$('#txDrawer,#detailDrawer,#payModal,#confirmModal').some(x => !x.classList.contains('hidden'))) document.body.style.overflow = '';
+  }, 220);
+  if (sel === '#detailDrawer') ui.detailId = null;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-close]');
+  if (c) { const layer = c.closest('#txDrawer,#detailDrawer,#payModal,#confirmModal'); if (layer) closeLayer('#' + layer.id); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  for (const id of ['#confirmModal', '#payModal', '#txDrawer', '#detailDrawer']) {
+    if (!$(id).classList.contains('hidden')) { closeLayer(id); break; }
+  }
+});
+
+/* ---------------- Confirm dialog ---------------- */
+function confirmDialog({ title, text, buttons }) {
+  $('#confirmTitle').textContent = title;
+  $('#confirmText').innerHTML = text;
+  const wrap = $('#confirmActions');
+  wrap.innerHTML = '';
+  const cancel = document.createElement('button');
+  cancel.className = 'rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800';
+  cancel.textContent = 'Cancel';
+  cancel.onclick = () => closeLayer('#confirmModal');
+  wrap.appendChild(cancel);
+  for (const b of buttons) {
+    const el = document.createElement('button');
+    el.className = 'rounded-lg px-4 py-2 text-sm font-semibold text-white ' + (b.danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700');
+    el.textContent = b.label;
+    el.onclick = () => { closeLayer('#confirmModal'); b.onClick(); };
+    wrap.appendChild(el);
+  }
+  openLayer('#confirmModal');
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+function toast(msg) {
+  $('#toastInner').textContent = msg;
+  const t = $('#toast');
+  t.classList.replace('opacity-0', 'opacity-100');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.replace('opacity-100', 'opacity-0'), 2600);
+}
+
+/* ---------------- Transaction form ---------------- */
+const getTx = id => state.transactions.find(t => t.id === id);
+const txForm = $('#txForm');
+
+function openTxForm(id = null) {
+  ui.editingId = id;
+  const tx = id ? getTx(id) : null;
+  $('#txDrawerTitle').textContent = tx ? 'Edit transaction' : 'New transaction';
+  txForm.reset();
+  const f = txForm.elements;
+  f.direction.value = tx ? tx.direction : state.settings.view;
+  f.name.value = tx?.name || '';
+  f.phone.value = tx?.phone || '';
+  f.principal.value = tx?.principal ?? '';
+  f.date.value = tx?.date || todayStr();
+  f.type.value = tx?.type || 'monthly';
+  f.rate.value = tx ? (tx.type === 'zero' ? '' : tx.rate) : '';
+  f.dueDate.value = tx?.dueDate || '';
+  f.notes.value = tx?.notes || '';
+  $('#txError').classList.add('hidden');
+  syncTxForm();
+  openLayer('#txDrawer');
+  setTimeout(() => { if (window.innerWidth >= 640) f.name.focus(); }, 260);
+}
+
+function syncTxForm() {
+  const f = txForm.elements;
+  const zero = f.type.value === 'zero';
+  f.rate.disabled = zero;
+  f.rate.classList.toggle('opacity-50', zero);
+  if (zero) f.rate.value = '';
+  const P = +f.principal.value || 0, r = +f.rate.value || 0;
+  let html;
+  if (zero) html = `<p class="font-medium">Zero interest</p><p class="text-slate-500 dark:text-slate-400">Only the principal of <b class="num">${money(P)}</b> is tracked.</p>`;
+  else if (f.type.value === 'fixed') html = `<p class="font-medium">One-time interest: <span class="num text-violet-700 dark:text-violet-300">${money(P * r / 100)}</span></p><p class="text-slate-500 dark:text-slate-400">Total to be returned: <b class="num">${money(P + P * r / 100)}</b>, regardless of days.</p>`;
+  else {
+    const perDay = P * (r / 100 / 30);
+    html = `<p class="font-medium">Interest per day: <span class="num text-violet-700 dark:text-violet-300">${money(perDay)}</span></p>
+      <p class="text-slate-500 dark:text-slate-400">30 days ≈ <b class="num">${money(perDay * 30)}</b> · 365 days ≈ <b class="num">${money(perDay * 365)}</b> (${(r * 365 / 30).toFixed(1)}% p.a.)</p>`;
+    if (isDateStr(f.date.value)) {
+      const days = Math.max(0, diffDays(f.date.value, todayStr()));
+      if (days > 0) html += `<p class="mt-1 text-slate-500 dark:text-slate-400">${days} days since given → interest so far <b class="num">${money(perDay * days)}</b></p>`;
+    }
+  }
+  $('#txPreview').innerHTML = html;
+}
+txForm.addEventListener('input', syncTxForm);
+txForm.addEventListener('change', syncTxForm);
+
+txForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = txForm.elements;
+  const err = m => { const el = $('#txError'); el.textContent = m; el.classList.remove('hidden'); };
+  const name = f.name.value.trim();
+  const principal = round2(+f.principal.value);
+  const type = f.type.value;
+  const rate = type === 'zero' ? 0 : +f.rate.value;
+  if (!name) return err('Please enter the client name.');
+  if (!(principal > 0)) return err('Principal amount must be greater than 0.');
+  if (!isDateStr(f.date.value)) return err('Please choose the date the money was given.');
+  if (type !== 'zero' && !(rate > 0)) return err('Enter an interest rate greater than 0, or choose “Zero interest”.');
+  if (f.dueDate.value && f.dueDate.value < f.date.value) return err('Expected return date cannot be before the date given.');
+  const existing = ui.editingId ? getTx(ui.editingId) : null;
+  if (existing && [...existing.payments, ...(existing.topups || [])].some(p => p.date < f.date.value)) return err('Some payments or top-ups are dated before this “Date given”. Adjust the date or delete those payments first.');
+
+  const data = {
+    direction: f.direction.value, name, phone: f.phone.value.trim(), principal, date: f.date.value,
+    type, rate: round2(rate || 0), dueDate: f.dueDate.value || '', notes: f.notes.value.trim(), updatedAt: Date.now(),
+  };
+  if (existing) Object.assign(existing, data);
+  else state.transactions.push({ id: uid(), payments: [], topups: [], createdAt: Date.now(), ...data });
+  if (state.settings.view !== data.direction) state.settings.view = data.direction;
+  save(); closeLayer('#txDrawer'); renderAll();
+  toast(existing ? 'Transaction updated' : 'Transaction added');
+});
+
+/* ---------------- Payment / top-up modal ---------------- */
+const payForm = $('#payForm');
+const PAY_KIND_HELP = {
+  auto: 'Clears pending interest first, the rest reduces principal.',
+  interest: 'Records an interest payment. Principal stays the same unless you pay more than the interest due.',
+  principal: 'Reduces principal first, so future interest drops. Pending interest stays due.',
+  waiver: 'Forgives this amount (e.g. settling for less). Not counted as money received.',
+};
+function openPay(id, mode = 'payment', kind = 'auto') {
+  const tx = getTx(id); if (!tx) return;
+  ui.payingId = id; ui.payMode = mode;
+  payForm.reset();
+  const f = payForm.elements;
+  const d = ui.asOf < tx.date ? tx.date : ui.asOf;
+  f.date.value = d; f.date.min = tx.date;
+  f.kind.value = kind;
+  const lent = tx.direction === 'lent';
+  $('#payTitle').textContent = mode === 'topup' ? (lent ? 'Give more money' : 'Borrow more money')
+    : kind === 'waiver' ? 'Discount / waive amount' : (lent ? 'Log payment received' : 'Log repayment made');
+  $('#paySub').textContent = tx.name;
+  $('#payKindWrap').classList.toggle('hidden', mode === 'topup');
+  $('#paySubmit').textContent = mode === 'topup' ? 'Add to loan' : kind === 'waiver' ? 'Save discount' : 'Save payment';
+  $('#payError').classList.add('hidden');
+  syncPay(true);
+  openLayer('#payModal');
+  setTimeout(() => { if (window.innerWidth >= 640) f.amount.focus(); }, 260);
+}
+function syncPay(prefill = false) {
+  const tx = getTx(ui.payingId); if (!tx) return;
+  const f = payForm.elements;
+  if (!isDateStr(f.date.value)) { $('#payPreview').innerHTML = ''; $('#payChips').innerHTML = ''; return; }
+  const c = calc(tx, f.date.value);
+  const kind = f.kind.value;
+  const chip = (label, val) => `<button type="button" data-fill="${round2(val).toFixed(2)}" class="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium hover:border-emerald-500 hover:text-emerald-700 dark:border-slate-700 dark:hover:text-emerald-400">${label} <span class="num font-semibold">${moneyShort(val)}</span></button>`;
+
+  if (ui.payMode === 'topup') {
+    $('#payChips').innerHTML = '';
+    const amt = +f.amount.value || 0;
+    $('#payPreview').innerHTML = `
+      <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Principal now</span><b class="num">${money(c.principalLeft)}</b></div>
+      ${amt > 0 ? `<div class="mt-1 flex justify-between font-semibold"><span>Principal after adding</span><span class="num">${money(c.principalLeft + amt)}</span></div>` : ''}
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">${tx.type === 'monthly' ? `Interest on the extra amount starts from ${fmtDate(f.date.value)}.` : tx.type === 'fixed' ? `${+tx.rate}% fixed interest is added on the extra amount.` : 'No interest on this loan.'}</p>`;
+    return;
+  }
+
+  $('#payKindHelp').textContent = PAY_KIND_HELP[kind];
+  const chips = [];
+  if (c.interestDue > EPS) chips.push(chip('Interest due', c.interestDue));
+  if (kind === 'principal' || kind === 'auto') { if (c.principalLeft > EPS) chips.push(chip('Principal', c.principalLeft)); }
+  if (c.outstanding > EPS) chips.push(chip(kind === 'waiver' ? 'Whole balance' : 'Full', c.outstanding));
+  $('#payChips').innerHTML = chips.join('');
+  if (prefill && kind === 'interest' && c.interestDue > EPS) f.amount.value = round2(c.interestDue).toFixed(2);
+
+  const amt = +f.amount.value || 0;
+  let toI, toP;
+  if (kind === 'principal') { toP = Math.min(amt, c.principalLeft); toI = Math.min(amt - toP, c.interestDue); }
+  else { toI = Math.min(amt, c.interestDue); toP = Math.min(amt - toI, c.principalLeft); }
+  const extra = amt - toI - toP;
+  const after = c.outstanding - toI - toP;
+  const newMonthly = tx.type === 'monthly' ? (c.principalLeft - toP) * (+tx.rate / 100) : 0;
+  $('#payPreview').innerHTML = `
+    <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Owed on ${fmtDate(f.date.value)}</span><b class="num">${money(c.outstanding)}</b></div>
+    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Principal ${money(c.principalLeft)} + pending interest ${money(c.interestDue)}</div>
+    ${amt > 0 ? `<div class="mt-3 space-y-1 border-t border-slate-200 pt-3 dark:border-slate-700">
+      ${toI > EPS ? `<div class="flex justify-between"><span>→ ${kind === 'waiver' ? 'Interest waived' : 'Towards interest'}</span><span class="num">${money(toI)}</span></div>` : ''}
+      ${toP > EPS ? `<div class="flex justify-between"><span>→ ${kind === 'waiver' ? 'Principal waived' : 'Towards principal'}</span><span class="num">${money(toP)}</span></div>` : ''}
+      ${extra > EPS ? `<div class="flex justify-between text-amber-700 dark:text-amber-300"><span>→ ${kind === 'waiver' ? 'More than owed (ignored)' : 'Excess (overpayment)'}</span><span class="num">${money(extra)}</span></div>` : ''}
+      ${kind === 'interest' && toP > EPS ? `<p class="text-xs text-amber-700 dark:text-amber-300">This is more than the interest due; the extra ${money(toP)} will reduce principal.</p>` : ''}
+      ${kind === 'principal' && toP > EPS && c.interestDue - toI > EPS ? `<p class="text-xs text-violet-700 dark:text-violet-300">${money(c.interestDue - toI)} interest stays pending.</p>` : ''}
+      <div class="flex justify-between font-semibold"><span>Balance after</span><span class="num ${after < EPS ? 'text-emerald-600 dark:text-emerald-400' : ''}">${after < EPS ? 'Fully settled ✓' : money(after)}</span></div>
+      ${tx.type === 'monthly' && toP > EPS && after > EPS ? `<div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>New monthly interest</span><span class="num">${money(newMonthly)} (was ${money(c.monthlyInterest)})</span></div>` : ''}
+    </div>` : ''}`;
+}
+payForm.addEventListener('input', () => syncPay());
+payForm.addEventListener('change', e => { if (e.target.name === 'kind') { syncPay(e.target.value === 'interest'); } });
+$('#payChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-fill]'); if (!b) return;
+  payForm.elements.amount.value = b.dataset.fill; syncPay();
+});
+payForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const tx = getTx(ui.payingId); if (!tx) return;
+  const f = payForm.elements;
+  const err = m => { const el = $('#payError'); el.textContent = m; el.classList.remove('hidden'); };
+  const amount = round2(+f.amount.value);
+  if (!isDateStr(f.date.value)) return err('Please choose a date.');
+  if (f.date.value < tx.date) return err(`Date cannot be before the loan date (${fmtDate(tx.date)}).`);
+  if (!(amount > 0)) return err('Enter an amount greater than 0.');
+  const entry = { id: uid(), date: f.date.value, amount, note: f.note.value.trim(), createdAt: Date.now() };
+  if (ui.payMode === 'topup') {
+    tx.topups = tx.topups || [];
+    tx.topups.push(entry);
+  } else {
+    if (f.kind.value !== 'auto') entry.kind = f.kind.value;
+    tx.payments.push(entry);
+  }
+  tx.updatedAt = Date.now();
+  save(); closeLayer('#payModal'); renderAll();
+  const c = calc(tx, f.date.value > ui.asOf ? f.date.value : ui.asOf);
+  toast(ui.payMode === 'topup' ? `${money(amount)} added to ${tx.name}'s loan`
+    : c.status === 'paid' ? `${tx.name} is now fully settled 🎉`
+    : f.kind.value === 'waiver' ? `${money(amount)} waived` : `Payment of ${money(amount)} saved`);
+});
+
+/* ---------------- Delete helpers ---------------- */
+function deleteTx(id) {
+  const tx = getTx(id); if (!tx) return;
+  confirmDialog({
+    title: 'Delete this transaction?',
+    text: `<b>${esc(tx.name)}</b> — ${money(tx.principal)} and its ${tx.payments.length} payment(s) will be removed permanently.`,
+    buttons: [{ label: 'Delete', danger: true, onClick: () => {
+      state.transactions = state.transactions.filter(t => t.id !== id);
+      save(); if (ui.detailId === id) closeLayer('#detailDrawer'); renderAll(); toast('Transaction deleted');
+    } }],
+  });
+}
+function deleteTopup(txId, topId) {
+  const tx = getTx(txId); const t = (tx?.topups || []).find(x => x.id === topId); if (!t) return;
+  confirmDialog({
+    title: 'Delete this extra amount?',
+    text: `${money(t.amount)} given on ${fmtDate(t.date)} will be removed and interest recalculated.`,
+    buttons: [{ label: 'Delete', danger: true, onClick: () => {
+      tx.topups = tx.topups.filter(x => x.id !== topId); tx.updatedAt = Date.now();
+      save(); renderAll(); toast('Top-up deleted');
+    } }],
+  });
+}
+function deletePayment(txId, payId) {
+  const tx = getTx(txId); const p = tx?.payments.find(x => x.id === payId); if (!p) return;
+  confirmDialog({
+    title: p.kind === 'waiver' ? 'Delete this discount?' : 'Delete this payment?',
+    text: `${money(p.amount)} on ${fmtDate(p.date)} will be removed and the balance recalculated.`,
+    buttons: [{ label: 'Delete payment', danger: true, onClick: () => {
+      tx.payments = tx.payments.filter(x => x.id !== payId); tx.updatedAt = Date.now();
+      save(); renderAll(); toast('Payment deleted');
+    } }],
+  });
+}
+
+/* ---------------- Export / Import ---------------- */
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+function exportJSON() {
+  const payload = { app: APP_ID, version: DATA_VERSION, exportedAt: new Date().toISOString(), settings: state.settings, transactions: state.transactions };
+  download(`lendledger-backup-${todayStr()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  toast(`Backup exported (${state.transactions.length} transactions)`);
+}
+function exportCSV() {
+  const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const head = ['Direction', 'Client', 'Phone', 'Date Given', 'Expected Return', 'Interest Type', 'Rate %', 'Principal', 'Days', 'Interest Accrued', 'Paid', 'Interest Paid', 'Principal Paid', 'Waived', 'Principal Remaining', 'Interest Unpaid', 'Outstanding', 'Status', 'Payments', 'Top-ups', 'Notes'];
+  const lines = [head.join(',')];
+  for (const tx of state.transactions) {
+    const c = calc(tx, ui.asOf);
+    lines.push([tx.direction, tx.name, tx.phone, tx.date, tx.dueDate, TYPE_LABEL[tx.type], tx.rate, c.principalOriginal.toFixed(2), c.daysElapsed,
+      c.totalInterest.toFixed(2), c.paid.toFixed(2), c.interestPaid.toFixed(2), c.principalPaid.toFixed(2), c.waived.toFixed(2), c.principalLeft.toFixed(2), c.interestDue.toFixed(2), c.outstanding.toFixed(2),
+      c.status === 'paid' ? 'Fully Paid' : c.status === 'overdue' ? 'Overdue' : 'Active',
+      tx.payments.map(p => `${p.date}:${p.amount}${p.kind ? '(' + p.kind + ')' : ''}`).join(' | '), (tx.topups || []).map(t => `${t.date}:${t.amount}`).join(' | '), tx.notes].map(q).join(','));
+  }
+  download(`lendledger-${ui.asOf}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+  toast('CSV exported');
+}
+function handleImport(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch { return toast('That file is not valid JSON'); }
+    const list = Array.isArray(data) ? data : data?.transactions;
+    if (!Array.isArray(list)) return toast('No transactions found in this file');
+    const incoming = list.map(normalizeTx).filter(Boolean);
+    const skipped = list.length - incoming.length;
+    if (!incoming.length) return toast('No valid transactions found in this file');
+    const skipNote = skipped ? `<br><span class="text-amber-600">${skipped} invalid record(s) will be skipped.</span>` : '';
+    confirmDialog({
+      title: `Import ${incoming.length} transaction${incoming.length === 1 ? '' : 's'}?`,
+      text: `<b>Merge</b> keeps your current data and adds/updates records from the file (matched by ID).<br><b>Replace</b> deletes everything here and uses only the file.${skipNote}`,
+      buttons: [
+        { label: 'Replace all', danger: true, onClick: () => {
+          state.transactions = incoming;
+          if (data.settings && typeof data.settings === 'object') state.settings = { ...state.settings, ...data.settings };
+          save(); applyTheme(); renderAll(); toast(`Replaced with ${incoming.length} transactions`);
+        } },
+        { label: 'Merge', onClick: () => {
+          const map = new Map(state.transactions.map(t => [t.id, t]));
+          let added = 0, updated = 0;
+          for (const t of incoming) { map.has(t.id) ? updated++ : added++; map.set(t.id, t); }
+          state.transactions = [...map.values()];
+          save(); renderAll(); toast(`Merged: ${added} added, ${updated} updated`);
+        } },
+      ],
+    });
+  };
+  reader.readAsText(file);
+}
+
+/* ---------------- Event wiring ---------------- */
+function wire() {
+  $$('.view-btn').forEach(b => b.addEventListener('click', () => { state.settings.view = b.dataset.view; save(); renderAll(); }));
+  $('#btnTheme').addEventListener('click', () => {
+    state.settings.theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+    save(); applyTheme();
+  });
+  $('#btnNewTop').addEventListener('click', () => openTxForm());
+  $('#btnNewFab').addEventListener('click', () => openTxForm());
+  $('#asOf').addEventListener('change', e => { if (isDateStr(e.target.value)) { ui.asOf = e.target.value; renderAll(); } });
+  $('#btnToday').addEventListener('click', () => { ui.asOf = todayStr(); renderAll(); });
+  $('#search').addEventListener('input', e => { ui.search = e.target.value; renderList(viewRows()); });
+  $('#statusFilter').addEventListener('change', e => { ui.status = e.target.value; renderList(viewRows()); });
+  $('#sortBy').addEventListener('change', e => { ui.sort = e.target.value; renderList(viewRows()); });
+
+  // Data menu
+  const menu = $('#menu');
+  $('#btnMenu').addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('hidden'); });
+  document.addEventListener('click', e => { if (!menu.contains(e.target) && !e.target.closest('#btnMenu')) menu.classList.add('hidden'); });
+  $('#currencySelect').addEventListener('change', e => { state.settings.currency = e.target.value; save(); renderAll(); });
+  $$('.menu-item').forEach(b => b.addEventListener('click', () => {
+    menu.classList.add('hidden');
+    const a = b.dataset.action;
+    if (a === 'export-json') exportJSON();
+    if (a === 'export-csv') exportCSV();
+    if (a === 'import-json') $('#fileImport').click();
+    if (a === 'load-demo') confirmDialog({ title: 'Load demo data?', text: 'This replaces all current transactions with sample data. Export a backup first if you need your data.',
+      buttons: [{ label: 'Load demo', danger: true, onClick: () => { state.transactions = demoData(); save(); renderAll(); toast('Demo data loaded'); } }] });
+    if (a === 'erase') confirmDialog({ title: 'Erase all data?', text: 'Every transaction and payment on this device will be deleted. This cannot be undone.',
+      buttons: [{ label: 'Erase everything', danger: true, onClick: () => { state.transactions = []; save(); renderAll(); toast('All data erased'); } }] });
+  }));
+  $('#fileImport').addEventListener('change', e => { const f = e.target.files[0]; if (f) handleImport(f); e.target.value = ''; });
+
+  // Row / card actions (delegated)
+  document.addEventListener('click', e => {
+    const pay = e.target.closest('[data-pay]'); if (pay) { e.stopPropagation(); return openPay(pay.dataset.pay); }
+    const edit = e.target.closest('[data-edit]'); if (edit) { e.stopPropagation(); return openTxForm(edit.dataset.edit); }
+    const del = e.target.closest('[data-del]'); if (del) { e.stopPropagation(); return deleteTx(del.dataset.del); }
+    const dp = e.target.closest('[data-delpay]'); if (dp) { e.stopPropagation(); return deletePayment(ui.detailId, dp.dataset.delpay); }
+    const dt = e.target.closest('[data-deltop]'); if (dt) { e.stopPropagation(); return deleteTopup(ui.detailId, dt.dataset.deltop); }
+    const col = e.target.closest('[data-collect]'); if (col) { e.stopPropagation(); return openPay(col.dataset.collect, 'payment', 'interest'); }
+    const qk = e.target.closest('[data-quick]'); if (qk) { e.stopPropagation(); const k = qk.dataset.quick; return k === 'topup' ? openPay(ui.detailId, 'topup') : openPay(ui.detailId, 'payment', k); }
+    const open = e.target.closest('[data-open]'); if (open) { ui.detailId = open.dataset.open; renderDetail(); openLayer('#detailDrawer'); }
+  });
+  $('#detailPay').addEventListener('click', () => openPay(ui.detailId));
+  $('#detailEdit').addEventListener('click', () => openTxForm(ui.detailId));
+  $('#detailDelete').addEventListener('click', () => deleteTx(ui.detailId));
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (!state.settings.theme) applyTheme(); });
+  // Keep "today" fresh if the app stays open past midnight
+  let lastToday = todayStr();
+  setInterval(() => { const t = todayStr(); if (t !== lastToday) { if (ui.asOf === lastToday) ui.asOf = t; lastToday = t; renderAll(); } }, 60000);
+  // Sync across tabs
+  window.addEventListener('storage', e => { if (e.key === STORE_KEY) { load(); renderAll(); } });
+}
+
+/* ---------------- Boot ---------------- */
+load();
+$('#currencySelect').value = state.settings.currency;
+applyTheme();
+wire();
+renderAll();
+})();
+</script>
+</body>
+</html>
